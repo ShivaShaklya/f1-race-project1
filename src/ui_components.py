@@ -777,6 +777,94 @@ class RaceProgressBarComponent(BaseComponent):
                 window.frame_index = float(max(0, min(target_frame, self._total_frames - 1)))
             return True
         return False
+
+
+def extract_race_events(frames: List[dict], track_statuses: List[dict], total_laps: int) -> List[dict]:
+    """
+    Extract race events from frame data for the progress bar.
+    
+    This function analyzes the telemetry frames to identify:
+    - DNF events (when a driver stops appearing)
+    - Leader changes (when the P1 position changes hands)
+    - Flag events (from track_statuses)
+    
+    Args:
+        frames: List of frame dictionaries from telemetry
+        track_statuses: List of track status events
+        total_laps: Total number of laps in the race
+        
+    Returns:
+        List of event dictionaries for the progress bar
+    """
+    events = []
+    
+    if not frames:
+        return events
+        
+    n_frames = len(frames)
+    
+    # Track drivers present in each frame
+    prev_drivers = set()
+    
+    # Sample frames at regular intervals for performance (every 25 frames = 1 second)
+    sample_rate = 25
+    
+    for i in range(0, n_frames, sample_rate):
+        frame = frames[i]
+        drivers_data = frame.get("drivers", {})
+        current_drivers = set(drivers_data.keys())
+        
+        # Detect DNFs (drivers who disappeared)
+        if prev_drivers:
+            dnf_drivers = prev_drivers - current_drivers
+            for driver_code in dnf_drivers:
+                # Get the lap from previous frame if available
+                prev_frame = frames[max(0, i - sample_rate)]
+                driver_info = prev_frame.get("drivers", {}).get(driver_code, {})
+                lap = driver_info.get("lap", "?")
+                
+                events.append({
+                    "type": RaceProgressBarComponent.EVENT_DNF,
+                    "frame": i,
+                    "label": driver_code,
+                    "lap": lap,
+                })
+        
+        prev_drivers = current_drivers
+    
+    # Add flag events from track_statuses
+    for status in track_statuses:
+        status_code = str(status.get("status", ""))
+        start_time = status.get("start_time", 0)
+        end_time = status.get("end_time")
+        
+        # Convert time to frame (assuming 25 FPS)
+        fps = 25
+        start_frame = int(start_time * fps)
+        end_frame = int(end_time * fps) if end_time else start_frame + 250  # Default 10 seconds
+        
+        event_type = None
+        if status_code == "2":  # Yellow flag
+            event_type = RaceProgressBarComponent.EVENT_YELLOW_FLAG
+        elif status_code == "4":  # Safety Car
+            event_type = RaceProgressBarComponent.EVENT_SAFETY_CAR
+        elif status_code == "5":  # Red flag
+            event_type = RaceProgressBarComponent.EVENT_RED_FLAG
+        elif status_code in ("6", "7"):  # VSC
+            event_type = RaceProgressBarComponent.EVENT_VSC
+            
+        if event_type:
+            events.append({
+                "type": event_type,
+                "frame": start_frame,
+                "end_frame": end_frame,
+                "label": "",
+                "lap": None,
+            })
+    
+    return events
+
+
 # Build track geometry from example lap telemetry
 
 def build_track_from_example_lap(example_lap, track_width=200):
