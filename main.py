@@ -110,13 +110,13 @@ def main(year=None, round_number=None, playback_speed=1, session_type='R', visib
 
 if __name__ == "__main__":
 
+  if "--verboseapi" not in sys.argv:#fastf1 logging is disabled by default
+    logging.getLogger("fastf1").setLevel(logging.CRITICAL + 1)
+
   if "--cli" in sys.argv:
     # Run the CLI
     cli_load()
     sys.exit(0)
-  
-  if "--verboseapi"not  in sys.argv:
-    logging.getLogger("fastf1").setLevel(logging.CRITICAL)#permanently silencing fastf1 logger
 
   if "--year" in sys.argv:
     year_index = sys.argv.index("--year") + 1
