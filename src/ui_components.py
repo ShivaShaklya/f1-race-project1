@@ -415,7 +415,7 @@ class LeaderboardComponent(BaseComponent):
             #PIT indicator in white
             if pit_text:arcade.Text(pit_text, left_x + 80, top_y,arcade.color.WHITE,16,anchor_x="left",anchor_y="top").draw()
 
-            #OUT indicator in team_color
+            #OUT indicator in red
             if out_text: arcade.Text(out_text, left_x + 80, top_y, (155,17,30), 16, anchor_x="left", anchor_y="top",bold=True).draw()
 
             # Gap display (if enabled)
